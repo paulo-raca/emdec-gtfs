@@ -8,10 +8,6 @@ from collections import OrderedDict
 
 #import shelve
 import urllib
-import sys
-import os
-import codecs
-sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 
 url_cache = {} #shelve.open('emdec.db')
 def fetch_url(url):
@@ -52,17 +48,17 @@ def linhas():
     return ret
 
 def parseMap(text):
-    latlng_re = "new google.maps.LatLng\\(([.\\-\\d]+),([.\\-\\d]+)\\)"
+    latlng_re = "new google.maps.LatLng\\(([.\\-\\d]+),( ?)([.\\-\\d]+)\\)"
     stop_re = "var pp_(\\d+) = " + latlng_re + ";"
     shapes_re = "var l_(\\d+) = \\[ ([^;]*) \\];"
     stops = [
-        [float(x[1]), float(x[2])]
+        [float(x[1]), float(x[3])]
         for x in re.findall(stop_re, text)
     ]
 
     shapes = [
         [
-            [float(x[0]), float(x[1])]
+            [float(x[0]), float(x[2])]
             for x in re.findall(latlng_re, shape[1])
         ]
         for shape in re.findall(shapes_re, text)
@@ -143,6 +139,9 @@ def detalhes(linha):
     return ret
 
 if __name__ == "__main__":
+    import codecs
+    import sys
+    sys.stdout = codecs.getwriter('utf8')(sys.stdout)
     routes = linhas()
     i=1
     for (linha, name) in routes.items():
