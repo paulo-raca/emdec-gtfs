@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 import logging
-import json
-import traceback
 import os
 import time
 import main
 from datetime import datetime
 import webapp2
+import traceback
+import json
 from webapp2_extras import auth, sessions
-import linhas
 
 class BaseRequestHandler(webapp2.RequestHandler):
     def dispatch(self):
@@ -39,7 +38,8 @@ def JsonHandler(sleep=0):
     def decorator(wrapped):
         def f(self, *args, **kwargs):
             try:
-                time.sleep(sleep)
+                if sleep:
+                    time.sleep(sleep)
                 if self.request.body:
                     args = [json.loads(self.request.body)] + list(args)
 
@@ -54,16 +54,12 @@ def JsonHandler(sleep=0):
                 }
 
             self.response.headers['Content-Type'] = "application/json; charset=UTF-8"
-            self.response.out.write(json.dumps(response, indent=4))
+            self.response.headers['Access-Control-Allow-Origin'] = "*"
+
+            self.response.out.write(json.dumps(
+                response,
+                indent=4 if self.isDev else None,
+                separators=(', ', ': ') if self.isDev else (',', ':')))
         return f
     return decorator
-
-class RouteHandler(BaseRequestHandler):
-    @JsonHandler()
-    def list(self):
-        return linhas.linhas()
-
-    @JsonHandler()
-    def get(self, route):
-        return linhas.detalhes(route)
 

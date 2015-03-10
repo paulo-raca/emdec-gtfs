@@ -4,6 +4,7 @@ import os
 import logging
 from webapp2 import WSGIApplication, Route
 
+
 IS_DEV = os.environ.get('SERVER_SOFTWARE','').startswith('Development')
 
 # inject './lib' dir in the path so that we can simply do "import ndb"
@@ -24,8 +25,9 @@ app_config = {
 
 # Map URLs to handlers
 routes = [
-    Route('/route/list', handler='handlers.RouteHandler:list'),
-    Route('/route/<route>', handler='handlers.RouteHandler:get'),
+    Route('/route/list', handler='emdec2gtfs.RouteHandler:list'),
+    Route('/route/<route_code>', handler='emdec2gtfs.RouteHandler:get'),
+    Route('/route/<route_codes>/gtfs', handler='emdec2gtfs.RouteHandler:gtfs'),
 ]
 
 

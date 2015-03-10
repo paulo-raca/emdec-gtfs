@@ -1,0 +1,6 @@
+README
+euclid.py
+euclid.egg-info/PKG-INFO
+euclid.egg-info/SOURCES.txt
+euclid.egg-info/dependency_links.txt
+euclid.egg-info/top_level.txt
