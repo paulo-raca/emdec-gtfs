@@ -39,7 +39,7 @@ Esta aplicação extrai informações de rotas de onibus do [site da emdec](http
  * [`/route/116,224,332/gtfs`](http://emdec.paulo.costa.nom.br/route/116,224,332/gtfs): Informações sobre a linhas `116`, `224` e `332`
  * [`/route/all/gtfs`](http://emdec.paulo.costa.nom.br/route/all/gtfs): Informações sobre todas as linhas
 
-Exemplo de uso da API JSON: http://jsfiddle.net/xofw4tk9/
+Exemplo de uso da API JSON: http://jsfiddle.net/v2w1vjLf/
 
 ## Cache de dados
 
