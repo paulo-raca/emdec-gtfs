@@ -10,6 +10,7 @@ from time import time as now
 from google.appengine.ext import ndb
 from google.appengine.api import taskqueue
 import logging
+from gcs_cache import GCSCached
 
 def format_time(seconds):
     return '%02d:%02d:%02d' % (seconds // 3600, (seconds // 60) % 60, seconds % 60 )
@@ -21,32 +22,75 @@ def parse_time(t):
     return parts[0]*3600 + parts[1]*60 + parts[2]
 
 class RouteHandler(handlers.BaseRequestHandler):
-    @JsonHandler()
-    def list(self):
-        return linhas.linhas()
+    def parse_route_codes(self, route_codes):
+        if route_codes=='all':
+            return 'all', self.get_route_list()
+        else:
+            if isinstance(route_codes, basestring):
+                route_codes = filter(None, map(str.strip, str(route_codes).split(',')))
+            route_codes = sorted(route_codes)
+            return ' '.join(route_codes), route_codes
+
+    def gtfs_filename(self, name):
+        return 'google_transit%s.zip' % ('' if name is 'all' else ' ' + name)
+
+    @GCSCached()
+    def get_route_info(self, route_codes, nocache=False):
+        name, route_codes = self.parse_route_codes(route_codes)
+        filename = '%s.json' % name
+        if len(route_codes) == 1:
+            f = lambda: {route_codes[0]: linhas.detalhes(route_codes[0])}
+        else:
+            f = lambda: {x: self.get_route_info(x)[x] for x in route_codes}
+
+        return filename, f, nocache
+
+    @GCSCached(content_type='application/zip', encode_contents=None, decode_contents=None)
+    def get_gtfs(self, route_codes, nocache=False):
+        name, _ = self.parse_route_codes(route_codes)
+        return self.gtfs_filename(name), lambda: self.build_gtfs(self.get_route_info(route_codes)).getzip(), nocache
+
+    @GCSCached()
+    def get_route_list(self, nocache=False):
+        return 'routes.json', linhas.linhas, nocache
+
+    # ============= Handlers ===================
+
+    def fetch_file(self, filename):
+        self.serve_gcs(filename)
 
     @JsonHandler()
-    def get(self, route_code):
-        return linhas.detalhes(route_code)
+    def async(self, what):
+        what = '/' + what
+        taskqueue.add(url=what + '?nocache', method='GET')
+        return "Queued %s" % what
 
     @JsonHandler()
-    def async_fetch(self):
-        for route in linhas.linhas():
-            taskqueue.add(url='/route/%s' % route)
-        return "Queued"
+    def async_refresh(self):
+        all_routes = self.get_route_list(nocache=True)
+        for route in all_routes:
+            taskqueue.add(url='/export/%s?nocache' % route, method='GET')
+            taskqueue.add(url='/export/%s/gtfs?nocache' % route, method='GET')
+        taskqueue.add(url='/export/all?nocache', method='GET')
+        taskqueue.add(url='/export/all/gtfs?nocache', method='GET')
+        return "Queued everything uncached"
 
     @JsonHandler()
-    def async_gtfs(self):
-        taskqueue.add(url='/route/all/gtfs')
-        return "Queued!"
+    def export_route_list(self):
+        return self.get_route_list(nocache=self.request.get("nocache", None) is not None)
 
+    @JsonHandler()
+    def export_route_info(self, route_codes):
+        return self.get_route_info(route_codes, nocache=self.request.get("nocache", None) is not None)
 
-    def get_gtfs(self, route_codes=[]):
-        route_codes = [] if route_codes=='all' else route_codes.split(',')
-        gtfs = self.build_gtfs(route_codes)
-        self.response.headers['Content-Type'] = "application/zip"
-        self.response.headers['Content-Disposition'] = 'attachment; filename=google_transit.zip'
-        self.response.out.write(gtfs.getzip())
+    def export_gtfs(self, route_codes):
+        zip = self.get_gtfs(route_codes, nocache=self.request.get("nocache", None) is not None)
+
+        name, _ = self.parse_route_codes(route_codes)
+        self.response.headers['Content-Type'] = 'application/zip'
+        self.response.headers['Content-Disposition'] = 'attachment; filename=%s' % self.gtfs_filename(name)
+        self.response.write(zip)
+
 
     def get_agency(self):
         agency = Agency(
@@ -94,7 +138,7 @@ class RouteHandler(handlers.BaseRequestHandler):
     def get_fare(self):
         return Fare(
             key=ndb.Key(Fare, 'normal fare'),
-            price=3.5,
+            price=3.50,
             currency_type='BRL',
             payment_method=Fare.PaymentMethod.ONBOARD,
             transfers=None, # UNLIMITED
@@ -102,7 +146,7 @@ class RouteHandler(handlers.BaseRequestHandler):
             rules=[] # No rules, this fare applies to all trips
         )
 
-    def build_gtfs(self, route_codes=[]):
+    def build_gtfs(self, route_infos):
         export = GTFS()
 
         export.write(self.get_feed_info())
@@ -113,10 +157,9 @@ class RouteHandler(handlers.BaseRequestHandler):
         for calendar in calendars.itervalues():
             export.write(calendar)
 
-        route_codes = route_codes or linhas.linhas().keys()
-        for route_code in route_codes:
+        for route_code, raw_route in route_infos.iteritems():
             route_begin_time = now()
-            raw_route = linhas.detalhes(route_code)
+
             #logging.info('Fetched Route %s' % route_code)
             route = Route(
                 key=ndb.Key(Route, route_code),

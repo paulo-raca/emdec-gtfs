@@ -40,7 +40,6 @@ def geocode(location):
     point = random.choice(geocoders).geocode(location)
     return [point.latitude, point.longitude]
 
-@NdbCached(namespace='fetch_url')
 def fetch_url(url):
     return requests.get(str(url)).text
 

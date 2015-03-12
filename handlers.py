@@ -8,6 +8,7 @@ import webapp2
 import traceback
 import json
 from webapp2_extras import auth, sessions
+from gcs_cache import gcs_stat, gcs_open
 
 class BaseRequestHandler(webapp2.RequestHandler):
     def dispatch(self):
@@ -20,6 +21,16 @@ class BaseRequestHandler(webapp2.RequestHandler):
         finally:
             # Save all sessions.
             self.session_store.save_sessions(self.response)
+
+    def serve_gcs(self, filename):
+        stat = self.gcs_stat(filename)
+        gcs_file = self.gcs_open(filename)
+        try :
+            self.response.headers['Content-Type'] = stat.content_type
+            self.response.headers['Content-Disposition'] = 'attachment; filename=%s' % os.path.basename(stat.filename)
+            self.response.write(gcs_file.read())
+        finally:
+            gcs_file.close()
 
     @webapp2.cached_property
     def now(self):
@@ -62,4 +73,3 @@ def JsonHandler(sleep=0):
                 separators=(', ', ': ') if self.isDev else (',', ':')))
         return f
     return decorator
-

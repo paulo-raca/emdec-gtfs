@@ -1,5 +1,5 @@
 from StringIO import StringIO
-from zipfile import ZipFile
+from zipfile import ZipFile, ZIP_DEFLATED
 import unicodecsv
 import codecs
 
@@ -47,12 +47,14 @@ class GTFS:
             if x["filename"]
         }
 
-    def getzip(self):
+    def writezip(self, zipfile):
         files = self.getvalue()
-        zipfile = StringIO()
-        with ZipFile(zipfile, mode='w') as zf:
+        with ZipFile(zipfile, mode='w', compression=ZIP_DEFLATED) as zf:
             for k, v in self.getvalue().iteritems():
                 zf.writestr(k, v)
 
+    def getzip(self):
+        zipfile = StringIO()
+        self.writezip(zipfile)
         return zipfile.getvalue()
 
