@@ -14,7 +14,7 @@ class BaseRequestHandler(webapp2.RequestHandler):
     def dispatch(self):
         # Get a session store for this request.
         self.session_store = sessions.get_store(request=self.request)
-
+        self.response.headers['Access-Control-Allow-Origin'] = "*"
         try:
             # Dispatch the request.
             webapp2.RequestHandler.dispatch(self)
@@ -65,7 +65,6 @@ def JsonHandler(sleep=0):
                 }
 
             self.response.headers['Content-Type'] = "application/json; charset=UTF-8"
-            self.response.headers['Access-Control-Allow-Origin'] = "*"
 
             self.response.out.write(json.dumps(
                 response,
