@@ -25,7 +25,7 @@ app_config = {
 
 # Map URLs to handlers
 routes = [
-    Route('/', handler=RedirectHandler, defaults={'_uri': '/route/all/gtfs'}),
+    Route('/', handler=RedirectHandler, defaults={'_uri': 'https://github.com/paulo-raca/Emdec-GTransit'}),
     Route('/files/<filename>', handler='emdec2gtfs.RouteHandler:fetch_file'),
     Route('/async/refresh', handler='emdec2gtfs.RouteHandler:async_refresh'),
     Route('/async/<what:.*>', handler='emdec2gtfs.RouteHandler:async'),
