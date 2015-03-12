@@ -25,9 +25,11 @@ app_config = {
 
 # Map URLs to handlers
 routes = [
+    Route('/async_fetch', handler='emdec2gtfs.RouteHandler:async_fetch'),
+    Route('/async_gtfs', handler='emdec2gtfs.RouteHandler:async_gtfs'),
     Route('/route/list', handler='emdec2gtfs.RouteHandler:list'),
     Route('/route/<route_code>', handler='emdec2gtfs.RouteHandler:get'),
-    Route('/route/<route_codes>/gtfs', handler='emdec2gtfs.RouteHandler:gtfs'),
+    Route('/route/<route_codes>/gtfs', handler='emdec2gtfs.RouteHandler:get_gtfs'),
 ]
 
 

@@ -16,19 +16,28 @@ from geopy.geocoders import GoogleV3 as GoogleGeoCoder
 from ndb_cache import NdbCached
 from datetime import timedelta
 import requests
+import random
 
-geocoder = GoogleGeoCoder('AIzaSyAqY4A4msFJzSMS0pKmJwWBw49GJ06WitQ')
+# Each API Key can only do 2.5k requests/day
+# Emdec DB has ~5k stops, therefore we need to spread requests on multiple keys :/
+geocoders = [
+    GoogleGeoCoder('AIzaSyAzo7m5NgTPeCnYsTlHOMIF1lxUUYzzuZ8'),
+    GoogleGeoCoder('AIzaSyBWraQCXoMBHpwPUAhj9DGwc0MxZ8ZR5Qo'),
+    GoogleGeoCoder('AIzaSyB3upaTsrSPqpDswxnuNEzoLHjWYqrzZYc'),
+    GoogleGeoCoder('AIzaSyBNtMdNylWbMcYpX2e_cnA6Xe6PEqwJrGk'),
+    GoogleGeoCoder('AIzaSyDHK28z7ujgxM71UyGbrKb5RYhi7l1ZZ2U'),
+]
 
 @NdbCached(namespace='geocode_reverse', expires=timedelta(days=5), splice=timedelta(days=5))
 def geocode_reverse(point):
     pos = '%f,%f' % tuple(point)
-    address = geocoder.reverse(pos)[0].address
+    address = random.choice(geocoders).reverse(pos)[0].address
     return re.sub(', Campinas.*', '',  address)
 
 @NdbCached(namespace='geocode', expires=timedelta(days=5), splice=timedelta(days=5))
 def geocode(location):
     location = location + ', Campinas, BR'
-    point = geocoder.geocode(location)
+    point = random.choice(geocoders).geocode(location)
     return [point.latitude, point.longitude]
 
 @NdbCached(namespace='fetch_url')
@@ -191,11 +200,11 @@ def process_map(map):
                     'shape_dist': shape[-1]['shape_dist']
                 })
 
-    print('Geocoding stop addresses...')
+    #print('Geocoding stop addresses...')
     for stops in all_stops:
         for stop in stops:
-            stop['name'] = 'Parada de ônibus' # geocode_reverse(stop['latlng'])
-    print('Geocoding done!')
+            stop['name'] = geocode_reverse(stop['latlng'])
+    #print('Geocoding done!')
 
     #JSON-Friendly result
     return [
@@ -221,7 +230,7 @@ def get_text(dom, name):
     if dom:
         return dom[0].get("value")
 
-@NdbCached(namespace='route_details')
+#@NdbCached(namespace='route_details')
 def detalhes(linha):
     linha_dash = linha if '-' in linha else linha + '-0'
 
@@ -339,7 +348,7 @@ if __name__ == "__main__":
         det = detalhes(linha)
         for direction in det['directions']:
             headsigns.add(direction['details']['Tempo de Percurso'])
-        print('%d/%d    %s - %s - %s' % (i, len(routes), linha, det["route_long_name"], det['2way']))
+        print('%d/%d    %s - %s' % (i, len(routes), linha, det["route_long_name"]))
         with file('out/%s.json' % linha, 'w') as f:
             f.write(json.dumps(det, indent=4))
         #print(json.dumps(det, indent=4))

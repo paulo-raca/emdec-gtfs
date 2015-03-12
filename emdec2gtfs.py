@@ -6,7 +6,10 @@ import linhas
 from gtfs import *
 from StringIO import StringIO
 from datetime import date, datetime, timedelta
+from time import time as now
 from google.appengine.ext import ndb
+from google.appengine.api import taskqueue
+import logging
 
 def format_time(seconds):
     return '%02d:%02d:%02d' % (seconds // 3600, (seconds // 60) % 60, seconds % 60 )
@@ -26,6 +29,25 @@ class RouteHandler(handlers.BaseRequestHandler):
     def get(self, route_code):
         return linhas.detalhes(route_code)
 
+    @JsonHandler()
+    def async_fetch(self):
+        for route in linhas.linhas():
+            taskqueue.add(url='/route/%s' % route)
+        return "Queued"
+
+    @JsonHandler()
+    def async_gtfs(self):
+        taskqueue.add(url='/route/all/gtfs')
+        return "Queued!"
+
+
+    def get_gtfs(self, route_codes=[]):
+        route_codes = [] if route_codes=='all' else route_codes.split(',')
+        gtfs = self.build_gtfs(route_codes)
+        self.response.headers['Content-Type'] = "application/zip"
+        self.response.headers['Content-Disposition'] = 'attachment; filename=google_transit.zip'
+        self.response.out.write(gtfs.getzip())
+
     def get_agency(self):
         agency = Agency(
             key=ndb.Key(Agency, 'emdec'),
@@ -36,7 +58,6 @@ class RouteHandler(handlers.BaseRequestHandler):
             agency_phone='(19) 3772-1517',
             agency_fare_url='http://www.emdec.com.br/eficiente/sites/portalemdec/pt-br/site.php?secao=tarifas'
         )
-        agency.put()
         return agency
 
     def get_calendars(self):
@@ -58,14 +79,10 @@ class RouteHandler(handlers.BaseRequestHandler):
             calendar.key = ndb.Key(Calendar, calendar_id)
             calendar.start_date = date.today() - timedelta(days=1)
             calendar.end_date   = date.today() + timedelta(days=90)
-            calendar.put()
         return calendars
 
-
-    def gtfs(self, route_codes):
-        export = GTFS()
-
-        feed_info = FeedInfo(
+    def get_feed_info(self):
+        return FeedInfo(
             feed_publisher_name='Paulo Costa',
             feed_publisher_url='https://github.com/paulo-raca/Emdec-GTransit',
             feed_lang='pt',
@@ -73,9 +90,9 @@ class RouteHandler(handlers.BaseRequestHandler):
             feed_end_date=None,
             feed_version=datetime.now().isoformat()
         )
-        export.write(feed_info)
 
-        fare = Fare(
+    def get_fare(self):
+        return Fare(
             key=ndb.Key(Fare, 'normal fare'),
             price=3.5,
             currency_type='BRL',
@@ -84,18 +101,23 @@ class RouteHandler(handlers.BaseRequestHandler):
             transfer_duration=2*60*60,
             rules=[] # No rules, this fare applies to all trips
         )
-        export.write(fare)
 
+    def build_gtfs(self, route_codes=[]):
+        export = GTFS()
+
+        export.write(self.get_feed_info())
+        export.write(self.get_fare())
+        calendars = self.get_calendars()
         agency = self.get_agency()
         export.write(agency)
-
-        calendars = self.get_calendars()
         for calendar in calendars.itervalues():
             export.write(calendar)
 
-        route_codes = linhas.linhas().keys() if route_codes=='all' else route_codes.split(',')
+        route_codes = route_codes or linhas.linhas().keys()
         for route_code in route_codes:
+            route_begin_time = now()
             raw_route = linhas.detalhes(route_code)
+            #logging.info('Fetched Route %s' % route_code)
             route = Route(
                 key=ndb.Key(Route, route_code),
                 agency_id=agency.key,
@@ -240,8 +262,6 @@ class RouteHandler(handlers.BaseRequestHandler):
                             #bikes_allowed=Trip.BikesAllowed.NOT_ALLOWED,
                         #)
                         #export.write(trip)
-
-        self.response.headers['Content-Type'] = "application/zip"
-        self.response.headers['Content-Disposition'] = 'attachment; filename=google_transit.zip'
-        #print(json.dumps(export.getvalue(), indent=4))
-        self.response.out.write(export.getzip())
+            logging.info('Exported Route %s - %.2fs' % (route_code, (now() - route_begin_time)))
+        logging.info('Export completed')
+        return export

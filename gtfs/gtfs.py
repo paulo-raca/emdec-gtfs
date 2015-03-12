@@ -24,11 +24,11 @@ class GTFS:
                 'keys_written': set()
             }
         if obj.key is not None:
-            if obj.key in self.types[clazz]['keys_written']:
+            if obj.key.id() in self.types[clazz]['keys_written']:
                 #print('Skip repeated key %s' % obj.key)
                 return
             else:
-                self.types[clazz]['keys_written'].add(obj.key)
+                self.types[clazz]['keys_written'].add(obj.key.id())
 
         row = [
             x(obj, parent, index) for x in self.types[clazz]["fields"].itervalues()
