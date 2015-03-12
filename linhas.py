@@ -53,6 +53,9 @@ def xmlprint(*dom):
         print(etree.tostring(x, pretty_print=True))
         print('^^^^^^^^^^^^^^^^^^')
 
+def fix_route_name(route_short_name, route_long_name):
+    return re.sub('^' + route_short_name + ' - ', '', route_long_name)
+
 def linhas():
     regex = '\\s*var v_item = "(\\d+)-[|]-(\\d+)-[|]-(.+)";'
     response = fetch_url('http://www.emdec.com.br/ABusInf/consultarlinha.asp')
@@ -63,7 +66,7 @@ def linhas():
             code = match.group(1)
             if match.group(2) != '0':
                 code += '-' + match.group(2)
-            ret[code] = match.group(3)
+            ret[code] = fix_route_name(code, match.group(3))
     return ret
 
 def parseMap(text):
@@ -304,9 +307,7 @@ def detalhes(linha):
     ]
     trechos = [trecho for trecho in trechos if trecho['map']['shape'] and trecho['details']['Letreiro'] != 'ESPECIAL']
 
-    route_long_name = get_text(pag_detalhes, 'txtPesquisa').split(' - ', 1)[-1]
-     #Remove número da linha do "route long name"
-    route_long_name = re.sub('^' + linha + ' - ', '', route_long_name)
+    route_long_name = fix_route_name(linha, get_text(pag_detalhes, 'txtPesquisa').split(' - ', 1)[-1])
 
     ret = OrderedDict()
     ret["route_short_name"] = linha
