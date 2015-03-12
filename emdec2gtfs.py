@@ -48,7 +48,7 @@ class RouteHandler(handlers.BaseRequestHandler):
     @GCSCached(content_type='application/zip', encode_contents=None, decode_contents=None)
     def get_gtfs(self, route_codes, nocache=False):
         name, _ = self.parse_route_codes(route_codes)
-        return self.gtfs_filename(name), lambda: self.build_gtfs(self.get_route_info(route_codes)).getzip(), nocache
+        return self.gtfs_filename(name), lambda: self.build_gtfs(self.get_route_info(route_codes, nocache=nocache)).getzip(), nocache
 
     @GCSCached()
     def get_route_list(self, nocache=False):
@@ -69,10 +69,8 @@ class RouteHandler(handlers.BaseRequestHandler):
     def async_refresh(self):
         all_routes = self.get_route_list(nocache=True)
         for route in all_routes:
-            taskqueue.add(url='/export/%s?nocache' % route, method='GET')
-            taskqueue.add(url='/export/%s/gtfs?nocache' % route, method='GET')
-        taskqueue.add(url='/export/all?nocache', method='GET')
-        taskqueue.add(url='/export/all/gtfs?nocache', method='GET')
+            taskqueue.add(url='/route/%s/gtfs?nocache' % route, method='GET')
+        taskqueue.add(url='/route/all/gtfs?nocache', method='GET')
         return "Queued everything uncached"
 
     @JsonHandler()

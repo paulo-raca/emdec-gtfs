@@ -2,7 +2,7 @@
 import sys
 import os
 import logging
-from webapp2 import WSGIApplication, Route
+from webapp2 import WSGIApplication, Route, RedirectHandler
 
 
 IS_DEV = os.environ.get('SERVER_SOFTWARE','').startswith('Development')
@@ -25,12 +25,13 @@ app_config = {
 
 # Map URLs to handlers
 routes = [
+    Route('/', handler=RedirectHandler, defaults={'_uri': '/route/all/gtfs'}),
     Route('/files/<filename>', handler='emdec2gtfs.RouteHandler:fetch_file'),
     Route('/async/refresh', handler='emdec2gtfs.RouteHandler:async_refresh'),
     Route('/async/<what:.*>', handler='emdec2gtfs.RouteHandler:async'),
-    Route('/export/route_list', handler='emdec2gtfs.RouteHandler:export_route_list'),
-    Route('/export/<route_codes>', handler='emdec2gtfs.RouteHandler:export_route_info'),
-    Route('/export/<route_codes>/gtfs', handler='emdec2gtfs.RouteHandler:export_gtfs'),
+    Route('/route/list', handler='emdec2gtfs.RouteHandler:export_route_list'),
+    Route('/route/<route_codes>/json', handler='emdec2gtfs.RouteHandler:export_route_info'),
+    Route('/route/<route_codes>/gtfs', handler='emdec2gtfs.RouteHandler:export_gtfs'),
 ]
 
 

@@ -1,4 +1,4 @@
 cron:
 - description: Keep route caches warm
   url: /async/refresh
-  schedule: every 6 hours
+  schedule: every 24 hours
