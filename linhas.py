@@ -321,7 +321,7 @@ def detalhes(linha):
     ret["route_color"] = {
         '1': '1985E9', # AZUL CLARO
         '2': 'e91919', # VERMELHO
-        '3': '6AD62F', # VERDE
+        '3': '0D2447', # VERDE
         '4': '0D2447', # AZUL ESCURO
         '5': '9D9D9D', # BRANCO COM FIGURAS
     }[linha[0]]
