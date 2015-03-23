@@ -13,9 +13,9 @@ Esta aplicação extrai informações de rotas de onibus do [site da emdec](http
 
   Infelizmente diversas outras rotas são apresentadas como um único percursos, mas possuem letreiros e horários distintos para a ida e a volta (e.g., [332](http://www.emdec.com.br/ABusInf/detalhelinha.asp?TpDiaID=0&CdPjOID=3125)). Nesses casos, eu infelizmente não possuo informação suficiente para determinar onde começa a "volta". Seria importante descobrir essa informação para informar o horário desta parada e atualizar o letreiro.
 
-* É fácil obter o trajeto e a lista de paradas a partir do site da emdec, mas há informção sobre a ordem das paradas.
+* É fácil obter o trajeto e a lista de paradas a partir do site da emdec, mas não há informação sobre a ordem das paradas.
 
-  O programa determina a sequência associando cada parada ao ponto mais próximo no trajeto. Quando há ambiguidade (Ida-e-volta pela mesma rua, rota com ciclos, etc - E.g., [332](http://www.portalinterbuss.com.br/campinas/linhas/332)), é escolhido de forma que a paradas fique à direita do onibus.
+  O programa determina a sequência associando cada parada ao ponto mais próximo no trajeto. Quando há ambiguidade (Ida-e-volta pela mesma rua, rota com ciclos, etc - E.g., [332](http://www.portalinterbuss.com.br/campinas/linhas/332)), a ambiguidade é resolvida de forma que a parada fique "à direita" do onibus.
 
   Por inspeção visual o resultado parece bastante satisfatório, mas existem alguns erros nas situações de ambiguidade.
 
@@ -27,7 +27,7 @@ Esta aplicação extrai informações de rotas de onibus do [site da emdec](http
 
   Por exemplo, "Terminal Barão Geraldo" é mostrado como "Avenida Albino José Barbosa de Oliveira, 893"
 
-* Não há suporte para "terminais" no formato GTFS
+* Atualmente não uso o suporte para "terminais" do formato GTFS
 
 ## Uso
 
