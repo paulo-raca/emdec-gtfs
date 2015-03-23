@@ -4,6 +4,8 @@ Esta aplicação extrai informações de rotas de onibus do [site da emdec](http
 * O formato JSON não segue nenhum padrão existente, mas representa de forma quase direta as informações extraídas da EMDEC.
 * O Formato GTFS segue uma [especifícação](https://developers.google.com/transit/gtfs/reference?hl=en) desenvolvida pelo Google e outros colaboradores. Em particular, este formato pode ser utilizado diretamente pelo Google Maps para cálculo de rotas.
 
+![Visualização das rotas](http://i.imgur.com/CS6NjkU.jpg "Visualização das rotas, gerada pela Mobilibus")
+
 
 ## Observações / Limitações
 
