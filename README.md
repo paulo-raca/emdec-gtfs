@@ -1,4 +1,4 @@
-# Emdec 2 GTFS
+# Emdec ⇒ GTFS
 Esta aplicação extrai informações de rotas de onibus do [site da emdec](http://www.emdec.com.br/ABusInf/consultarlinha.asp), e as apresenta em 2 formatos: GTFS e JSON
 
 * O formato JSON não segue nenhum padrão existente, mas representa de forma quase direta as informações extraídas da EMDEC.
