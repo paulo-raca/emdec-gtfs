@@ -13,10 +13,10 @@ from lxml.html import fromstring as parse_html
 from collections import OrderedDict, namedtuple
 from euclid import Vector3 as Vector
 from geopy.geocoders import GoogleV3 as GoogleGeoCoder
-from ndb_cache import NdbCached
 from datetime import timedelta
 import requests
 import random
+from memorised.decorators import memorise
 
 # Each API Key can only do 2.5k requests/day
 # Emdec DB has ~5k stops, therefore we need to spread requests on multiple keys :/
@@ -28,13 +28,14 @@ geocoders = [
     GoogleGeoCoder('AIzaSyDHK28z7ujgxM71UyGbrKb5RYhi7l1ZZ2U'),
 ]
 
-@NdbCached(namespace='geocode_reverse', expires=timedelta(days=5), splice=timedelta(days=5))
+DAYS = 24*60*60
+@memorise(ttl=(3*DAYS, 6*DAYS))
 def geocode_reverse(point):
     pos = '%f,%f' % tuple(point)
     address = random.choice(geocoders).reverse(pos)[0].address
     return re.sub(', Campinas.*', '',  address)
 
-@NdbCached(namespace='geocode', expires=timedelta(days=5), splice=timedelta(days=5))
+@memorise(ttl=(3*DAYS, 6*DAYS))
 def geocode(location):
     location = location + ', Campinas, BR'
     point = random.choice(geocoders).geocode(location)
@@ -232,7 +233,6 @@ def get_text(dom, name):
     if dom:
         return dom[0].get("value")
 
-#@NdbCached(namespace='route_details')
 def detalhes(linha):
     linha_dash = linha if '-' in linha else linha + '-0'
 
