@@ -52,4 +52,4 @@ Um `cronjob` atualiza todos os arquivos uma vez ao dia. É possível iniciar o p
 
 ## Licença
 
-Faça o que quiser, com o código ou com os dados, eu não me importo.
+Faça o que quiser, com o código ou com os dados.
