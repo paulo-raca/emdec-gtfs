@@ -49,3 +49,7 @@ Como extrair as informações e exportar para o formato desejado pode ser uma op
 Se você deseja gerar novamente um arquivo, basta adicionar `?nocache` no endereço.
 
 Um `cronjob` atualiza todos os arquivos uma vez ao dia. É possível iniciar o processo de atualização complete através de [`/async/refresh`](http://emdec.paulo.costa.nom.br/async/refresh) (O processo é bastante demorado)
+
+## Licença
+
+Faça o que quiser, com o código ou com os dados, eu não me importo.
