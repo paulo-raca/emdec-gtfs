@@ -231,7 +231,11 @@ def process_map(map):
 def get_text(dom, name):
     dom = dom.cssselect('input[name="%s"]' % name)
     if dom:
-        return dom[0].get("value")
+        v = dom[0].get("value")
+        v = re.sub(r"\s+", " ", v)
+        v = re.sub(r"^\s", "", v)
+        v = re.sub(r"\s$", "", v)
+        return v
 
 def detalhes(linha):
     linha_dash = linha if '-' in linha else linha + '-0'
