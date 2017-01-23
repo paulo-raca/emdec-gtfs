@@ -21,21 +21,17 @@ from memorised.decorators import memorise
 # Each API Key can only do 2.5k requests/day
 # Emdec DB has ~5k stops, therefore we need to spread requests on multiple keys :/
 geocoders = [
-    GoogleGeoCoder('AIzaSyAzo7m5NgTPeCnYsTlHOMIF1lxUUYzzuZ8'),
-    GoogleGeoCoder('AIzaSyBWraQCXoMBHpwPUAhj9DGwc0MxZ8ZR5Qo'),
-    GoogleGeoCoder('AIzaSyB3upaTsrSPqpDswxnuNEzoLHjWYqrzZYc'),
-    GoogleGeoCoder('AIzaSyBNtMdNylWbMcYpX2e_cnA6Xe6PEqwJrGk'),
-    GoogleGeoCoder('AIzaSyDHK28z7ujgxM71UyGbrKb5RYhi7l1ZZ2U'),
+    GoogleGeoCoder('AIzaSyDo8qUyqvHULeUqRHucR9rBSEIdTsbUe4M')
 ]
 
 DAYS = 24*60*60
-@memorise(ttl=(3*DAYS, 6*DAYS))
+@memorise(ttl=(5*DAYS, 10*DAYS))
 def geocode_reverse(point):
     pos = '%f,%f' % tuple(point)
     address = random.choice(geocoders).reverse(pos)[0].address
     return re.sub(', Campinas.*', '',  address)
 
-@memorise(ttl=(3*DAYS, 6*DAYS))
+@memorise(ttl=(5*DAYS, 10*DAYS))
 def geocode(location):
     location = location + ', Campinas, BR'
     point = random.choice(geocoders).geocode(location)

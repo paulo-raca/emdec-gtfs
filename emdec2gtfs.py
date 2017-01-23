@@ -10,6 +10,7 @@ from time import time as now
 from google.appengine.ext import ndb
 from google.appengine.api import taskqueue
 import logging
+from collections import OrderedDict
 from gcs_cache import GCSCached
 
 def format_time(seconds):
@@ -29,26 +30,26 @@ class RouteHandler(handlers.BaseRequestHandler):
             if isinstance(route_codes, basestring):
                 route_codes = filter(None, map(str.strip, str(route_codes).split(',')))
             route_codes = sorted(route_codes)
-            return ' '.join(route_codes), route_codes
+            return '_'.join(route_codes), route_codes
 
     def gtfs_filename(self, name):
-        return 'google_transit%s.zip' % ('' if name is 'all' else ' ' + name)
+        return 'google_transit%s.zip' % ('' if name is 'all' else '_' + name)
 
     @GCSCached()
-    def get_route_info(self, route_codes, nocache=False):
-        name, route_codes = self.parse_route_codes(route_codes)
-        filename = '%s.json' % name
-        if len(route_codes) == 1:
-            f = lambda: {route_codes[0]: linhas.detalhes(route_codes[0])}
-        else:
-            f = lambda: {x: self.get_route_info(x)[x] for x in route_codes}
-
+    def get_single_route_info(self, route_code, nocache=False):
+        filename = '%s.json' % route_code
+        f = lambda: linhas.detalhes(route_code)
         return filename, f, nocache
 
+    def get_multi_route_info(self, name, route_codes, nocache=False):
+        for x in route_codes:
+            yield (x, self.get_single_route_info(x, nocache=nocache))
+
     @GCSCached(content_type='application/zip', encode_contents=None, decode_contents=None)
-    def get_gtfs(self, route_codes, nocache=False):
-        name, _ = self.parse_route_codes(route_codes)
-        return self.gtfs_filename(name), lambda: self.build_gtfs(self.get_route_info(route_codes, nocache=nocache)).getzip(), nocache
+    def get_gtfs(self, name, route_codes, nocache=False):
+        filename = 'gtfs_%s.zip' % name
+        f = lambda: self.build_gtfs(self.get_multi_route_info(name, route_codes)).getzip()
+        return filename, f, nocache
 
     @GCSCached()
     def get_route_list(self, nocache=False):
@@ -69,6 +70,7 @@ class RouteHandler(handlers.BaseRequestHandler):
     def async_refresh(self):
         all_routes = self.get_route_list(nocache=True)
         for route in all_routes:
+            taskqueue.add(url='/route/%s/json?nocache' % route, method='GET')
             taskqueue.add(url='/route/%s/gtfs?nocache' % route, method='GET')
         taskqueue.add(url='/route/all/gtfs?nocache', method='GET')
         return "Queued everything uncached"
@@ -79,12 +81,13 @@ class RouteHandler(handlers.BaseRequestHandler):
 
     @JsonHandler()
     def export_route_info(self, route_codes):
-        return self.get_route_info(route_codes, nocache=self.request.get("nocache", None) is not None)
+        name, codes = self.parse_route_codes(route_codes)
+        return OrderedDict(self.get_multi_route_info(name, codes, nocache=self.request.get("nocache", None) is not None))
 
     def export_gtfs(self, route_codes):
-        zip = self.get_gtfs(route_codes, nocache=self.request.get("nocache", None) is not None)
+        name, codes = self.parse_route_codes(route_codes)
+        zip = self.get_gtfs(name, codes, nocache=self.request.get("nocache", None) is not None)
 
-        name, _ = self.parse_route_codes(route_codes)
         self.response.headers['Content-Type'] = 'application/zip'
         self.response.headers['Content-Disposition'] = 'attachment; filename=%s' % self.gtfs_filename(name)
         self.response.write(zip)
@@ -126,7 +129,7 @@ class RouteHandler(handlers.BaseRequestHandler):
     def get_feed_info(self):
         return FeedInfo(
             feed_publisher_name='Paulo Costa',
-            feed_publisher_url='https://github.com/paulo-raca/Emdec-GTransit',
+            feed_publisher_url='https://github.com/paulo-raca/emdec-gtfs',
             feed_lang='pt',
             feed_start_date=None,
             feed_end_date=None,
@@ -155,7 +158,7 @@ class RouteHandler(handlers.BaseRequestHandler):
         for calendar in calendars.itervalues():
             export.write(calendar)
 
-        for route_code, raw_route in route_infos.iteritems():
+        for route_code, raw_route in route_infos:
             route_begin_time = now()
 
             #logging.info('Fetched Route %s' % route_code)

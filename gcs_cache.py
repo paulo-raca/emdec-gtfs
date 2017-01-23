@@ -2,6 +2,7 @@ import json
 import cloudstorage as gcs
 import logging
 from google.appengine.api import app_identity
+from collections import OrderedDict
 
 _prefix = '/' + app_identity.get_default_gcs_bucket_name() + '/'
 logging.info('GCS Prefix: %s' % _prefix)
@@ -16,7 +17,7 @@ def gcs_open(filename, *args, **kwargs):
     return gcs.open(gcs_filename(filename), *args, **kwargs)
 
 
-def GCSCached(content_type='application/json', encode_contents=json.dumps, decode_contents=json.loads):
+def GCSCached(content_type='application/json', encode_contents=json.dumps, decode_contents=lambda x: json.loads(x, object_pairs_hook=OrderedDict)):
     if encode_contents is None:
         encode_contents = lambda x: x
     if decode_contents is None:
@@ -27,7 +28,7 @@ def GCSCached(content_type='application/json', encode_contents=json.dumps, decod
             filename, generator, cache_disabled = wrapped(*args, **kwargs)
 
             try:
-                if cache_disabled:
+                if cache_disabled or filename is None:
                     raise Exception('Cache disabled')
                 file = gcs_open(filename)
                 try:
@@ -39,13 +40,14 @@ def GCSCached(content_type='application/json', encode_contents=json.dumps, decod
             except:
                 ret = generator()
                 try:
-                    file = gcs_open(filename, 'w', content_type=content_type)
-                    try:
-                        data = encode_contents(ret)
-                        logging.info('WRITING "%s": %d bytes' % (filename, len(data)))
-                        file.write(data)
-                    finally:
-                        file.close()
+                    if filename is not None:
+                        file = gcs_open(filename, 'w', content_type=content_type)
+                        try:
+                            data = encode_contents(ret)
+                            logging.info('WRITING "%s": %d bytes' % (filename, len(data)))
+                            file.write(data)
+                        finally:
+                            file.close()
                 except:
                     pass
                 return ret
