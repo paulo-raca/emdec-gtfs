@@ -25,13 +25,13 @@ geocoders = [
 ]
 
 DAYS = 24*60*60
-@memorise(ttl=(5*DAYS, 10*DAYS))
+@memorise(ttl=(25*DAYS, 35*DAYS))
 def geocode_reverse(point):
     pos = '%f,%f' % tuple(point)
     address = random.choice(geocoders).reverse(pos)[0].address
     return re.sub(', Campinas.*', '',  address)
 
-@memorise(ttl=(5*DAYS, 10*DAYS))
+@memorise(ttl=(25*DAYS, 35*DAYS))
 def geocode(location):
     location = location + ', Campinas, BR'
     point = random.choice(geocoders).geocode(location)
