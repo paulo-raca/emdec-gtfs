@@ -21,7 +21,12 @@ from memorised.decorators import memorise
 # Each API Key can only do 2.5k requests/day
 # Emdec DB has ~5k stops, therefore we need to spread requests on multiple keys :/
 geocoders = [
-    GoogleGeoCoder('AIzaSyDo8qUyqvHULeUqRHucR9rBSEIdTsbUe4M')
+    GoogleGeoCoder('AIzaSyDo8qUyqvHULeUqRHucR9rBSEIdTsbUe4M'),
+    GoogleGeoCoder('AIzaSyAzo7m5NgTPeCnYsTlHOMIF1lxUUYzzuZ8'),
+    GoogleGeoCoder('AIzaSyBWraQCXoMBHpwPUAhj9DGwc0MxZ8ZR5Qo'),
+    GoogleGeoCoder('AIzaSyB3upaTsrSPqpDswxnuNEzoLHjWYqrzZYc'),
+    GoogleGeoCoder('AIzaSyBNtMdNylWbMcYpX2e_cnA6Xe6PEqwJrGk'),
+    GoogleGeoCoder('AIzaSyDHK28z7ujgxM71UyGbrKb5RYhi7l1ZZ2U'),
 ]
 
 DAYS = 24*60*60
