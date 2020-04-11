@@ -2,66 +2,49 @@
 from __future__ import print_function
 
 import sys
-if 'lib' not in sys.path:
-    sys.path[0:0] = ['lib']
-
 import re
 import math
 import json
-from lxml import etree
 from lxml.html import fromstring as parse_html
-from collections import OrderedDict, namedtuple
 from euclid import Vector3 as Vector
-from geopy.geocoders import GoogleV3 as GoogleGeoCoder
-from datetime import timedelta
-import requests
 import random
-from memorised.decorators import memorise
+import asyncio
+import aiohttp
+import itertools
 
 # Each API Key can only do 2.5k requests/day
 # Emdec DB has ~5k stops, therefore we need to spread requests on multiple keys :/
-geocoders = [
-    GoogleGeoCoder('AIzaSyDo8qUyqvHULeUqRHucR9rBSEIdTsbUe4M'),
-    GoogleGeoCoder('AIzaSyAzo7m5NgTPeCnYsTlHOMIF1lxUUYzzuZ8'),
-    GoogleGeoCoder('AIzaSyBWraQCXoMBHpwPUAhj9DGwc0MxZ8ZR5Qo'),
-    GoogleGeoCoder('AIzaSyB3upaTsrSPqpDswxnuNEzoLHjWYqrzZYc'),
-    GoogleGeoCoder('AIzaSyBNtMdNylWbMcYpX2e_cnA6Xe6PEqwJrGk'),
-    GoogleGeoCoder('AIzaSyDHK28z7ujgxM71UyGbrKb5RYhi7l1ZZ2U'),
+GEOCODER_API_KEYS = [
+    'AIzaSyDo8qUyqvHULeUqRHucR9rBSEIdTsbUe4M',
+    'AIzaSyAzo7m5NgTPeCnYsTlHOMIF1lxUUYzzuZ8',
+    'AIzaSyBWraQCXoMBHpwPUAhj9DGwc0MxZ8ZR5Qo',
+    'AIzaSyB3upaTsrSPqpDswxnuNEzoLHjWYqrzZYc',
+    'AIzaSyBNtMdNylWbMcYpX2e_cnA6Xe6PEqwJrGk',
+    'AIzaSyDHK28z7ujgxM71UyGbrKb5RYhi7l1ZZ2U',
 ]
 
-DAYS = 24*60*60
-@memorise(ttl=(25*DAYS, 35*DAYS))
-def geocode_reverse(point):
-    pos = '%f,%f' % tuple(point)
-    address = random.choice(geocoders).reverse(pos)[0].address
+#@memorise(ttl=(25*DAYS, 35*DAYS))
+async def geocode_reverse(point):
+    url = f'https://maps.googleapis.com/maps/api/geocode/json?latlng={point[0]},{point[1]}&key={random.choice(GEOCODER_API_KEYS)}'
+    data = json.loads(await fetch_url(url))
+    address = data["results"][0]["formatted_address"]
     return re.sub(', Campinas.*', '',  address)
 
-@memorise(ttl=(25*DAYS, 35*DAYS))
-def geocode(location):
-    location = location + ', Campinas, BR'
-    point = random.choice(geocoders).geocode(location)
-    return [point.latitude, point.longitude]
-
-def fetch_url(url):
-    return requests.get(str(url)).text
+async def fetch_url(url):
+    async with aiohttp.ClientSession() as aiohttp_session:
+        async with aiohttp_session.get(url) as resp:
+            return await resp.text()
 
 def strip(x):
     return re.sub('[\\s\\xa0]+', ' ', x.strip())
 
-
-def xmlprint(*dom):
-    for x in dom:
-        print('vvvvvvvvvvvvvvvvvv')
-        print(etree.tostring(x, pretty_print=True))
-        print('^^^^^^^^^^^^^^^^^^')
-
 def fix_route_name(route_short_name, route_long_name):
     return re.sub('^' + route_short_name + ' - ', '', route_long_name)
 
-def linhas():
+async def linhas():
     regex = '\\s*var v_item = "(\\d+)-[|]-(\\d+)-[|]-(.+)";'
-    response = fetch_url('http://www.emdec.com.br/ABusInf/consultarlinha.asp')
-    ret = OrderedDict()
+    response = await fetch_url('http://www.emdec.com.br/ABusInf/consultarlinha.asp')
+    ret = {}
     for line in response.splitlines():
         match = re.match(regex, line)
         if match:
@@ -146,7 +129,7 @@ def dist_to_segment(A, B, C):
         }
 
 
-def process_map(map):
+async def process_map(map):
     all_shapes = []
     all_stops = []
     for raw_shape in map['shapes']:
@@ -205,10 +188,13 @@ def process_map(map):
                 })
 
     #print('Geocoding stop addresses...')
-    for stops in all_stops:
-        for stop in stops:
-            stop['name'] = geocode_reverse(stop['latlng'])
-    #print('Geocoding done!')
+    async def populated_stop_name(stop):
+        stop['name'] = await geocode_reverse(stop['latlng'])
+
+    await asyncio.gather(*[
+        populated_stop_name(stop)
+        for stop in itertools.chain(*all_stops)
+    ])
 
     #JSON-Friendly result
     return [
@@ -238,26 +224,25 @@ def get_text(dom, name):
         v = re.sub(r"\s$", "", v)
         return v
 
-def detalhes(linha):
+async def detalhes(linha):
     linha_dash = linha if '-' in linha else linha + '-0'
 
     # Busca pelo numero da linha
-    pag_query_regex = '\\s*document.JnInformacoes.action = "detalhelinha.asp\\?(.*)";'
-    pag_query = fetch_url(
-        'http://www.emdec.com.br/ABusInf/consultarlinha.asp?linha=%s&consulta=1' % linha_dash)
+    pag_query = await fetch_url(f'http://www.emdec.com.br/ABusInf/consultarlinha.asp?linha={linha_dash}&consulta=1')
     for line in pag_query.splitlines():
+        pag_query_regex = '\\s*document.JnInformacoes.action = "detalhelinha.asp\\?(.*)";'
         match = re.match(pag_query_regex, line)
         if match:
-            url_detalhes = 'http://www.emdec.com.br/ABusInf/detalhelinha.asp?%s' % match.group(1)
+            url_detalhes = f'http://www.emdec.com.br/ABusInf/detalhelinha.asp?{match.group(1)}'
             break
 
-    pag_detalhes = parse_html(fetch_url(url_detalhes))
-    pag_map = fetch_url('http://www.emdec.com.br/ABusInf/%s' % pag_detalhes.cssselect('#mapFrame')[0].get('src'))
+    pag_detalhes = parse_html(await fetch_url(url_detalhes))
+    pag_map = await fetch_url(f'http://www.emdec.com.br/ABusInf/{pag_detalhes.cssselect("#mapFrame")[0].get("src")}')
     map_data = parseMap(pag_map)
-    processed_map = process_map(map_data)
+    processed_map = await process_map(map_data)
 
     def schedules(dom):
-        ret = OrderedDict()
+        ret = {}
         for group in dom.xpath('div'):
             title_node = group.xpath('p')[-1]
             name = {
@@ -292,13 +277,13 @@ def detalhes(linha):
         ]
 
     def trecho(dom, map_data):
-        details = OrderedDict()
+        details = {}
         for tr in dom.xpath('div/table/tr'):
             details[strip(tr.cssselect('td')[0].text)[:-1]] = tr.cssselect('td input')[0].get('value')
 
         main_panels = dom.xpath('table/tr/td')
 
-        ret = OrderedDict()
+        ret = {}
         ret["details"] = details
         #ret["end_location"] = geocode(details["Letreiro"])
         ret["schedules"] = schedules(main_panels[0])
@@ -314,7 +299,7 @@ def detalhes(linha):
 
     route_long_name = fix_route_name(linha, get_text(pag_detalhes, 'txtPesquisa').split(' - ', 1)[-1])
 
-    ret = OrderedDict()
+    ret = {}
     ret["route_short_name"] = linha
     ret["route_long_name"] = route_long_name
     ret["company"] = get_text(pag_detalhes, 'txtEmpresa')
@@ -341,23 +326,14 @@ def detalhes(linha):
 
     return ret
 
-import codecs
-import sys
-sys.stdout = codecs.getwriter('utf8')(sys.stdout)
-if __name__ == "__main__":
-    routes = sys.argv[1:] or linhas().keys()
-    headsigns = set()
-    i=0
-    for linha in routes:
-        i+=1
-        det = detalhes(linha)
-        for direction in det['directions']:
-            headsigns.add(direction['details']['Tempo de Percurso'])
-        print('%d/%d    %s - %s' % (i, len(routes), linha, det["route_long_name"]))
-        with file('out/%s.json' % linha, 'w') as f:
-            f.write(json.dumps(det, indent=4))
-        #print(json.dumps(det, indent=4))
+async def main():
+    routes = sys.argv[1:] or (await linhas()).keys()
+    for i, linha in enumerate(routes):
+        details = await detalhes(linha)
+        print(f'{i+1}/{len(routes)}: {linha} - {details["route_long_name"]}')
+        with open(f'out/{linha}.json', 'w') as f:
+            f.write(json.dumps(details, indent=4))
 
-    print()
-    for x in sorted(headsigns):
-        print(x)
+if __name__ == "__main__":
+    asyncio.run(main())
+

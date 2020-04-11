@@ -1,9 +1,0 @@
-../unicodecsv/test.py
-../unicodecsv/__init__.py
-../unicodecsv/test.pyc
-../unicodecsv/__init__.pyc
-./
-top_level.txt
-PKG-INFO
-SOURCES.txt
-dependency_links.txt
