@@ -1,14 +1,14 @@
-from google.appengine.ext import ndb
-from protorpc import messages
-from google.appengine.ext.ndb import msgprop
-from csvmodel import CsvModel
+from typing import List
+from .csvmodel import CsvModel, LatLon, id_field, child_parent_field, child_index_field, children_list_field
 
-class ShapePoint(CsvModel):
-    _csv_file = 'shapes.txt'
-    _csv_parent_id = 'shape_id'
-    _csv_list_index = 'shape_pt_sequence'
-    shape_pt_latlon = ndb.GeoPtProperty(required=True)
-    shape_dist_traveled = ndb.FloatProperty()
+@CsvModel('shapes.txt')
+class ShapePoint:
+    shape_id: "Shape" = child_parent_field()
+    shape_pt_sequence: int = child_index_field()
+    shape_pt_latlon: LatLon = None
+    shape_dist_traveled: float = None
 
-class Shape(CsvModel):
-    shape_points = ndb.StructuredProperty(ShapePoint, repeated=True)
+@CsvModel(None)
+class Shape:
+    shape_id: str = id_field()
+    shape_points: List[ShapePoint] = children_list_field()

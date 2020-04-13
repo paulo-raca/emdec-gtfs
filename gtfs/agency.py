@@ -1,12 +1,11 @@
-from google.appengine.ext import ndb
-from csvmodel import CsvModel
+from .csvmodel import CsvModel, id_field
 
-class Agency(CsvModel):
-    _csv_file = 'agency.txt'
-    _csv_id = 'agency_id'
-    agency_name = ndb.StringProperty(required=True)
-    agency_url = ndb.TextProperty(required=True)
-    agency_timezone = ndb.StringProperty(required=True)
-    agency_lang = ndb.StringProperty()
-    agency_phone = ndb.StringProperty()
-    agency_fare_url = ndb.StringProperty()
+@CsvModel('agency.txt')
+class Agency:
+    agency_id: str = id_field()
+    agency_name: str = None
+    agency_url: str = None
+    agency_timezone: str = None
+    agency_lang: str = None
+    agency_phone: str = None
+    agency_fare_url: str = None

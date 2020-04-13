@@ -1,21 +1,20 @@
-from google.appengine.ext import ndb
-from protorpc import messages
-from google.appengine.ext.ndb import msgprop
-from csvmodel import CsvModel
+from datetime import date
+from enum import Enum
+from .csvmodel import CsvModel, id_field
 
-class Calendar(CsvModel):
-    class Available(messages.Enum):
-        UNAVAILABLE = 0
-        AVAILABLE = 1
+@CsvModel('calendar.txt')
+class Calendar:
+    class Available(Enum):
+        Unavailable = 0
+        Available = 1
 
-    _csv_file = 'calendar.txt'
-    _csv_id = 'service_id'
-    monday = msgprop.EnumProperty(Available, required=True)
-    tuesday = msgprop.EnumProperty(Available, required=True)
-    wednesday = msgprop.EnumProperty(Available, required=True)
-    thursday = msgprop.EnumProperty(Available, required=True)
-    friday = msgprop.EnumProperty(Available, required=True)
-    saturday = msgprop.EnumProperty(Available, required=True)
-    sunday = msgprop.EnumProperty(Available, required=True)
-    start_date = ndb.DateProperty(required=True)
-    end_date = ndb.DateProperty(required=True)
+    service_id: str = id_field()
+    monday: Available = None
+    tuesday: Available = None
+    wednesday: Available = None
+    thursday: Available = None
+    friday: Available = None
+    saturday: Available = None
+    sunday: Available = None
+    start_date: date = None
+    end_date: date = None

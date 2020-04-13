@@ -1,27 +1,26 @@
-from google.appengine.ext import ndb
-from protorpc import messages
-from google.appengine.ext.ndb import msgprop
-from csvmodel import CsvModel
+from enum import Enum
+from .zone import Zone
+from .csvmodel import CsvModel, LatLon, id_field, reference_field
 
-class Stop(CsvModel):
-    class LocationType(messages.Enum):
-        STOP = 0
-        STATION = 1
+@CsvModel('stops.txt')
+class Stop():
+    class LocationType(Enum):
+        Stop = 0
+        Station = 1
 
-    class WheelchairBoarding(messages.Enum):
-        UNKNOWN = 0
-        POSSIBLE = 1
-        IMPOSSIBLE = 2
+    class WheelchairBoarding(Enum):
+        Unknown = 0
+        Possible = 1
+        Impossible = 2
 
-    _csv_file = 'stops.txt'
-    _csv_id = 'stop_id'
-    stop_code = ndb.StringProperty()
-    stop_name = ndb.StringProperty(required=True)
-    stop_desc = ndb.TextProperty()
-    stop_latlon = ndb.GeoPtProperty(required=True)
-    zone_id = ndb.KeyProperty(kind='Zone')
-    stop_url = ndb.StringProperty()
-    location_type = msgprop.EnumProperty(LocationType)
-    parent_station = ndb.KeyProperty(kind='Stop')
-    stop_timezone = ndb.StringProperty()
-    wheelchair_boarding = msgprop.EnumProperty(WheelchairBoarding)
+    stop_id: str = id_field()
+    stop_code: str = None
+    stop_name: str = None
+    stop_desc: str = None
+    stop_latlon: LatLon = None
+    zone_id: Zone = reference_field()
+    stop_url: str = None
+    location_type: LocationType = LocationType.Stop
+    parent_station: "Stop" = reference_field()
+    stop_timezone: str = None
+    wheelchair_boarding: WheelchairBoarding = WheelchairBoarding.Unknown

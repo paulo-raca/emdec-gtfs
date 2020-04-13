@@ -1,69 +1,76 @@
-from google.appengine.ext import ndb
-from protorpc import messages
-from google.appengine.ext.ndb import msgprop
-from csvmodel import CsvModel
+#from google.cloud import ndb
+from enum import Enum
+from typing import List
+from .csvmodel import CsvModel, id_field, child_parent_field, child_index_field, children_list_field, reference_field
+from .calendar import Calendar
+from .route import Route
+from .stop import Stop
+from .shape import Shape
 
-class StopTime(CsvModel):
-    class PickupDropoffType(messages.Enum):
-        AVAILABLE = 0
-        UNAVAILABLE = 1
-        SCHEDULE_WITH_AGENCY = 2
-        SCHEDULE_WITH_DRIVER = 3
+@CsvModel('stop_times.txt')
+class StopTime():
+    class PickupDropoffType(Enum):
+        Available = 0
+        Unavailable = 1
+        Schedule_with_agency = 2
+        Schedule_with_driver = 3
 
-    class TimePoint(messages.Enum):
-        APPROXIMATE = 0
-        EXACT = 1
+    class TimePoint(Enum):
+        Approximate = 0
+        Exact = 1
 
-    _csv_file = 'stop_times.txt'
-    _csv_parent_id = 'trip_id'
-    _csv_list_index = 'stop_sequence'
-    arrival_time = ndb.StringProperty()
-    departure_time = ndb.StringProperty()
-    stop_id = ndb.KeyProperty(kind='Stop', required=True)
-    stop_headsign = ndb.StringProperty()
-    pickup_type = msgprop.EnumProperty(PickupDropoffType)
-    drop_off_type = msgprop.EnumProperty(PickupDropoffType)
-    shape_dist_traveled = ndb.FloatProperty()
-    timepoint = msgprop.EnumProperty(TimePoint)
+    trip_id: "Trip" = child_parent_field()
+    stop_sequence: int = child_index_field()
+    arrival_time: str = None
+    departure_time: str = None
+    stop_id: Stop = reference_field()
+    stop_headsign:str = None
+    pickup_type: PickupDropoffType = None
+    drop_off_type: PickupDropoffType = None
+    shape_dist_traveled: float = None
+    timepoint: TimePoint = None
 
-class TripFrequency(CsvModel):
-    class ExactTime(messages.Enum):
-        APPROXIMATE = 0
-        EXACT = 1
+@CsvModel('frequencies.txt')
+class TripFrequency:
+    class ExactTime(Enum):
+        Approximate = 0
+        Exact = 1
 
-    _csv_file = 'frequencies.txt'
-    _csv_parent_id = 'trip_id'
-    start_time = ndb.StringProperty(required=True)
-    end_time = ndb.StringProperty(required=True)
-    headway_secs = ndb.IntegerProperty(required=True)
-    exact_times = msgprop.EnumProperty(ExactTime)
+    trip_id: "Trip" = child_parent_field()
+    start_time: str = None
+    end_time: str = None
+    headway_secs: int = None
+    exact_times: ExactTime = None
 
+@CsvModel(None)
+class Block():
+    block_id: str = id_field()
 
-class Trip(CsvModel):
-    class Direction(messages.Enum):
+@CsvModel('trips.txt')
+class Trip:
+    class Direction(Enum):
         A = 0
         B = 1
 
-    class WheelchairAcessible(messages.Enum):
-        UNKNOWN = 0
-        ACESSIBLE = 1
-        INACESSIBLE = 2
+    class WheelchairAcessible(Enum):
+        Unknown = 0
+        Acessible = 1
+        Inacessible = 2
 
-    class BikesAllowed(messages.Enum):
-        UNKNOWN = 0
-        ALLOWED = 1
-        NOT_ALLOWED = 2
+    class BikesAllowed(Enum):
+        Unknown = 0
+        Allowed = 1
+        NotAllowed = 2
 
-    _csv_file = 'trips.txt'
-    _csv_id = 'trip_id'
-    route_id = ndb.KeyProperty(kind='Route', required=True)
-    service_id = ndb.KeyProperty(kind='Calendar', required=True)
-    trip_headsign = ndb.StringProperty()
-    trip_short_name = ndb.StringProperty()
-    direction_id = msgprop.EnumProperty(Direction)
-    block_id = ndb.KeyProperty(kind='Block')
-    shape_id = ndb.KeyProperty(kind='Shape')
-    stop_times = ndb.StructuredProperty(StopTime, repeated=True)
-    frequencies = ndb.StructuredProperty(TripFrequency, repeated=True)
-    wheelchair_accessible = msgprop.EnumProperty(WheelchairAcessible)
-    bikes_allowed = msgprop.EnumProperty(BikesAllowed)
+    trip_id: str = id_field()
+    route_id: Route = reference_field()
+    service_id: Calendar = reference_field()
+    trip_headsign: str = None
+    trip_short_name: str = None
+    direction_id: Direction = None
+    block_id: Block = reference_field()
+    shape_id: Shape = reference_field()
+    stop_times: List[StopTime] = children_list_field()
+    frequencies: List[TripFrequency] = children_list_field()
+    wheelchair_accessible: WheelchairAcessible = None
+    bikes_allowed: BikesAllowed = None

@@ -1,98 +1,109 @@
-from collections import OrderedDict
-from google.appengine.ext import ndb
-from google.appengine.ext.ndb import msgprop
-import csv
-import ast
-import inspect
+from dataclasses import dataclass, field, fields
+from functools import partial
+from enum import Enum
+from datetime import date
 
-class NodeTagger(ast.NodeVisitor):
-    def __init__(self):
-        self.class_attribute_names = {}
+FIELD_METADATA_CSVMODEL_TYPE = "csvmodel_type"
 
-    def visit_Assign(self, node):
-        for target in node.targets:
-            self.class_attribute_names[target.id] = target.lineno
+def id_field(metadata={}, **kwargs):
+    metadata[FIELD_METADATA_CSVMODEL_TYPE] = "id"
+    return field(metadata=metadata, default=None, **kwargs)
 
-    # Don't visit Assign nodes inside Function Definitions.
-    def visit_FunctionDef(self, unused_node):
-        return None
+def child_parent_field(metadata={}, **kwargs):
+    metadata[FIELD_METADATA_CSVMODEL_TYPE] = "child_parent_node"
+    return field(metadata=metadata, default=None, repr=False, **kwargs)
 
-class CsvModel(ndb.Model):
-    _csv_file = None
-    _csv_id = None
-    _csv_parent_id = None
-    _csv_list_index = None
+def child_index_field(metadata={}, **kwargs):
+    metadata[FIELD_METADATA_CSVMODEL_TYPE] = "child_index"
+    return field(metadata=metadata, default=None, **kwargs)
 
-    @staticmethod
-    def _getattrs(obj, *property_names):
-        for p in property_names:
-            if obj:
-                if isinstance(p, str):
-                    obj = getattr(obj, p)
-                    if hasattr(obj, '__call__'):
-                        obj = obj()
-                else:
-                    obj = p(obj)
-        return obj
+def children_list_field(metadata={}, **kwargs):
+    metadata[FIELD_METADATA_CSVMODEL_TYPE] = "children_list"
+    return field(default_factory=list, metadata=metadata, **kwargs)
 
-    @staticmethod
-    def _field_to_csv(fieldname, property):
-        if isinstance(property, msgprop.EnumProperty):
-            return {
-                fieldname: lambda obj, parent, index: CsvModel._getattrs(obj, fieldname, 'number')
-            }
-        if isinstance(property, ndb.DateProperty):
-            return {
-                fieldname: lambda obj, parent, index: CsvModel._getattrs(obj, fieldname, lambda x:x.strftime('%Y%m%d'))
-            }
-        if isinstance(property, ndb.KeyProperty):
-            return {
-                fieldname: lambda obj, parent, index: CsvModel._getattrs(obj, fieldname, 'id')
-            }
-        elif fieldname.endswith('_latlon'):
-            return {
-                fieldname.replace('_latlon', '_lat'): lambda obj, parent, index: CsvModel._getattrs(obj, fieldname, 'lat'),
-                fieldname.replace('_latlon', '_lon'): lambda obj, parent, index: CsvModel._getattrs(obj, fieldname, 'lon'),
-            }
-        else:
-            return {
-                fieldname: lambda obj, parent, index: CsvModel._getattrs(obj, fieldname)
-            }
+def reference_field(metadata={}, **kwargs):
+    metadata[FIELD_METADATA_CSVMODEL_TYPE] = "reference"
+    return field(metadata=metadata, default=None, repr=False, **kwargs)
 
-    @staticmethod
-    def _field_to_children(fieldname, property):
-        if property._repeated:
-            return lambda obj: getattr(obj, fieldname)
-        else:
-            return lambda obj: [getattr(obj, fieldname)]
 
-    @classmethod
-    def csv_fields(cls):
-        fields = OrderedDict()
-        children_getters = []
-        if cls._csv_id:
-            fields[cls._csv_id] = lambda obj, parent, index: CsvModel._getattrs(obj, 'key', 'id')
-        if cls._csv_parent_id:
-            fields[cls._csv_parent_id] = lambda obj, parent, index: CsvModel._getattrs(parent, 'key', 'id')
-        if cls._csv_list_index:
-            fields[cls._csv_list_index] = lambda obj, parent, index: index
+@dataclass
+class LatLon:
+    lat: float
+    lon: float
 
-        for fieldname in cls.ordered_ndb_fields():
-            property = cls._properties[fieldname]
-            if isinstance(property, ndb.StructuredProperty):
-                children_getters.append(CsvModel._field_to_children(fieldname, property))
+def _path_getter(*path):
+    def getter(obj):
+        for prop in path:
+            if obj is None:
+                return None
+            if isinstance(prop, str):
+                obj = getattr(obj, prop)
+            elif hasattr(prop, '__call__'):
+                obj = prop(obj)
             else:
-                fields.update(CsvModel._field_to_csv(fieldname, property))
+                raise ValueError(f"Expected property name or function, got {repr(prop)}")
+        return obj
+    return getter
 
-        return fields, children_getters
+def get_children(obj):
+    for field in obj.__class__._csv_node_fields:
+        value = getattr(obj, field.name)
+        if value is not None:
+            yield value
+    for field in obj.__class__._csv_node_list_fields:
+        values = getattr(obj, field.name)
+        for index, value in enumerate(values):
+            if value.__class__._csv_parent_field is not None:
+                setattr(value, value.__class__._csv_parent_field.name, obj)
+            if value.__class__._csv_index_field is not None:
+                setattr(value, value.__class__._csv_index_field.name, index)
+            yield value
 
-    @classmethod
-    def ordered_ndb_fields(cls):
-        properties = list(cls._properties.keys())
-        source = inspect.getsource(cls)
-        tree = ast.parse(source)
-        visitor = NodeTagger()
-        visitor.visit(tree)
-        attributes = visitor.class_attribute_names
-        properties.sort(key=lambda x:attributes[x])
-        return properties
+def CsvModel(csv_file):
+    def wrapper(cls):
+        cls = dataclass(cls)
+        cls._csv_file = csv_file
+
+        cls._csv_id_field = None
+        cls._csv_parent_field = None
+        cls._csv_index_field = None
+        cls._csv_node_list_fields = []
+        cls._csv_node_fields = []
+        cls._csv_fields = {}
+
+        print(cls.__name__)
+
+        for field in fields(cls):
+            print(field)
+
+            csv_type = field.metadata.get(FIELD_METADATA_CSVMODEL_TYPE, None)
+            if csv_type == 'id':
+                assert cls._csv_id_field is None, "Already has an ID field"
+                cls._csv_id_field = field
+            elif csv_type == 'child_parent_node':
+                assert cls._csv_parent_field is None, "Already has a parent ID field"
+                cls._csv_parent_field = field
+                cls._csv_node_fields.append(field)
+            elif csv_type == 'child_index':
+                assert cls._csv_index_field is None, "Already has a list index field"
+                cls._csv_index_field = field
+            elif csv_type == 'children_list':
+                cls._csv_node_list_fields.append(field)
+            elif csv_type == 'reference':
+                cls._csv_node_fields.append(field)
+
+
+            if csv_type != 'children_list':
+                if csv_type in ['reference', 'child_parent_node']:
+                    cls._csv_fields[field.name] = _path_getter(field.name, lambda obj: getattr(obj, type(obj)._csv_id_field.name))
+                elif isinstance(field.type, type) and issubclass(field.type, Enum):
+                    cls._csv_fields[field.name] = _path_getter(field.name, "value")
+                elif field.type == date:
+                    cls._csv_fields[field.name] = _path_getter(field.name, lambda date: date.strftime('%Y%m%d'))
+                elif field.name.endswith("_latlon"):
+                    cls._csv_fields[field.name.replace('_latlon', '_lat')] = _path_getter(field.name, "lat")
+                    cls._csv_fields[field.name.replace('_latlon', '_lon')] = _path_getter(field.name, "lon")
+                else:
+                    cls._csv_fields[field.name] = _path_getter(field.name)
+        return cls
+    return wrapper

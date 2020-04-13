@@ -1,26 +1,26 @@
-from google.appengine.ext import ndb
-from protorpc import messages
-from google.appengine.ext.ndb import msgprop
-from csvmodel import CsvModel
+from enum import Enum
+from .csvmodel import CsvModel, child_parent_field, reference_field, children_list_field, id_field
+from .zone import Zone
+from .route import Route
+from typing import List
 
-class FareRule(CsvModel):
-    _csv_file = 'fare_rules.txt'
-    _csv_parent_id = 'fare_id'
-    route_id = ndb.KeyProperty(kind='Route')
-    origin_id = ndb.KeyProperty(kind='Zone')
-    destination_id = ndb.KeyProperty(kind='Zone')
-    contains_id = ndb.KeyProperty(kind='Zone')
+@CsvModel('fare_rules.txt')
+class FareRule:
+    fare_id: "Fare" = child_parent_field()
+    route_id: Route = reference_field()
+    origin_id: Zone = reference_field()
+    destination_id: Zone = reference_field()
+    contains_id: Zone = reference_field()
 
-class Fare(CsvModel):
-    class PaymentMethod(messages.Enum):
+@CsvModel('fare_attributes.txt')
+class Fare:
+    class PaymentMethod(Enum):
         ONBOARD = 0
         BEFORE_BOARDING = 1
-
-    _csv_file = 'fare_attributes.txt'
-    _csv_id = 'fare_id'
-    price = ndb.FloatProperty(required=True)
-    currency_type = ndb.StringProperty(required=True)
-    payment_method = msgprop.EnumProperty(PaymentMethod)
-    transfers=ndb.IntegerProperty()
-    transfer_duration=ndb.IntegerProperty()
-    rules = ndb.StructuredProperty(FareRule, repeated=True)
+    fare_id: str = id_field()
+    price: float = None
+    currency_type: str = None
+    payment_method: PaymentMethod = None
+    transfers: int = None
+    transfer_duration: int = None
+    rules: List[FareRule] = children_list_field()
