@@ -45,8 +45,8 @@ async def route_list():
 @app.route('/route/<route_codes>.json')
 async def route_as_json(route_codes):
     name, route_codes = await parse_route_codes(route_codes)
-    return jsonify(await route_details(route_codes))
-
+    details = await route_details(route_codes)
+    return jsonify(details)
 
 @app.route('/route/<route_codes>.gtfs')
 async def route_as_gtfs(route_codes):

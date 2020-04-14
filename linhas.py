@@ -1,4 +1,5 @@
 from cache import cache
+from geocode import geocode_reverse
 import sys
 import re
 import math
@@ -7,29 +8,10 @@ from lxml.html import fromstring as parse_html
 from euclid import Vector3 as Vector
 from datetime import timedelta
 from functools import wraps
-import random
 import asyncio
 import aiohttp
 import aiocache
 import itertools
-
-# Each API Key can only do 2.5k requests/day
-# Emdec DB has ~5k stops, therefore we need to spread requests on multiple keys :/
-GEOCODER_API_KEYS = [
-    'AIzaSyDo8qUyqvHULeUqRHucR9rBSEIdTsbUe4M',
-    'AIzaSyAzo7m5NgTPeCnYsTlHOMIF1lxUUYzzuZ8',
-    'AIzaSyBWraQCXoMBHpwPUAhj9DGwc0MxZ8ZR5Qo',
-    'AIzaSyB3upaTsrSPqpDswxnuNEzoLHjWYqrzZYc',
-    'AIzaSyBNtMdNylWbMcYpX2e_cnA6Xe6PEqwJrGk',
-    'AIzaSyDHK28z7ujgxM71UyGbrKb5RYhi7l1ZZ2U',
-]
-
-@aiocache.cached(cache=cache, ttl=(timedelta(days=25), timedelta(days=35)))
-async def geocode_reverse(point):
-    url = f'https://maps.googleapis.com/maps/api/geocode/json?latlng={point[0]},{point[1]}&key={random.choice(GEOCODER_API_KEYS)}'
-    data = json.loads(await fetch_url(url))
-    address = data["results"][0]["formatted_address"]
-    return re.sub(', Campinas.*', '',  address)
 
 async def fetch_url(url):
     async with aiohttp.ClientSession() as aiohttp_session:

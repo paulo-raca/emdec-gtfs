@@ -4,3 +4,5 @@ __pycache__
 *.ndbcache
 cache.db*
 out
+geocode_keys.txt
+
