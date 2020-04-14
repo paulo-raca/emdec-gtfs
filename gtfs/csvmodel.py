@@ -71,11 +71,7 @@ def CsvModel(csv_file):
         cls._csv_node_fields = []
         cls._csv_fields = {}
 
-        print(cls.__name__)
-
         for field in fields(cls):
-            print(field)
-
             csv_type = field.metadata.get(FIELD_METADATA_CSVMODEL_TYPE, None)
             if csv_type == 'id':
                 assert cls._csv_id_field is None, "Already has an ID field"

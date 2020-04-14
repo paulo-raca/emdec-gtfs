@@ -1,15 +1,16 @@
-# -*- coding: utf-8 -*-
-from __future__ import print_function
-
+from cache import cache
 import sys
 import re
 import math
 import json
 from lxml.html import fromstring as parse_html
 from euclid import Vector3 as Vector
+from datetime import timedelta
+from functools import wraps
 import random
 import asyncio
 import aiohttp
+import aiocache
 import itertools
 
 # Each API Key can only do 2.5k requests/day
@@ -23,7 +24,7 @@ GEOCODER_API_KEYS = [
     'AIzaSyDHK28z7ujgxM71UyGbrKb5RYhi7l1ZZ2U',
 ]
 
-#@memorise(ttl=(25*DAYS, 35*DAYS))
+@aiocache.cached(cache=cache, ttl=(timedelta(days=25), timedelta(days=35)))
 async def geocode_reverse(point):
     url = f'https://maps.googleapis.com/maps/api/geocode/json?latlng={point[0]},{point[1]}&key={random.choice(GEOCODER_API_KEYS)}'
     data = json.loads(await fetch_url(url))
@@ -41,6 +42,7 @@ def strip(x):
 def fix_route_name(route_short_name, route_long_name):
     return re.sub('^' + route_short_name + ' - ', '', route_long_name)
 
+@aiocache.cached(cache=cache, ttl=timedelta(hours=1))
 async def linhas():
     regex = '\\s*var v_item = "(\\d+)-[|]-(\\d+)-[|]-(.+)";'
     response = await fetch_url('http://www.emdec.com.br/ABusInf/consultarlinha.asp')
@@ -224,6 +226,7 @@ def get_text(dom, name):
         v = re.sub(r"\s$", "", v)
         return v
 
+@aiocache.cached(cache=cache, ttl=(timedelta(days=3), timedelta(days=7)))
 async def detalhes(linha):
     linha_dash = linha if '-' in linha else linha + '-0'
 
@@ -324,6 +327,7 @@ async def detalhes(linha):
     }[linha[0]]
     ret["directions"] = trechos
 
+    print(f"Fetched details from {linha}")
     return ret
 
 async def main():

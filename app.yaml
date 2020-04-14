@@ -1,25 +1,3 @@
-runtime: python27
-api_version: 1
-threadsafe: yes
+runtime: python37
+entrypoint: hypercorn -b :${PORT} main:app
 
-default_expiration: "1s"
-
-handlers:
-- url: /.*
-  script: main.app
-
-libraries:
-- name: webapp2
-  version: "latest"
-- name: webob
-  version: "latest"
-- name: markupsafe
-  version: "latest"
-- name: setuptools
-  version: "latest"
-- name: jinja2
-  version: "latest"
-- name: lxml
-  version: "latest"
-- name: ssl
-  version: latest

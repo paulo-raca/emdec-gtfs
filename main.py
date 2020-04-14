@@ -1,38 +1,59 @@
-# -*- coding: utf-8 -*-
-import sys
-import os
-import logging
-from webapp2 import WSGIApplication, Route, RedirectHandler
+from quart import Quart, redirect, jsonify, send_file
+import linhas
+import emdec2gtfs
+import asyncio
+import aiocache
+from asyncio_pool import AioPool
+
+app = Quart(__name__)
+#app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
+app.config['JSON_AS_ASCII'] = False
+app.config['JSON_SORT_KEYS'] = False
+
+async def all_routes():
+    return await linhas.linhas()
+
+async def route_details(route_codes):
+    async with AioPool(20) as fetch_pool:
+        details = await fetch_pool.map(linhas.detalhes, route_codes)
+        return dict(zip(route_codes, details))
+
+async def parse_route_codes(route_codes):
+    valid_route_codes = (await all_routes()).keys()
+    if route_codes=='all':
+        return 'all', valid_route_codes
+    else:
+        route_codes = sorted([
+            route_code.strip()
+            for route_code in route_codes.split(",")
+            if route_code.strip()
+        ])
+        for route_code in route_codes:
+            if route_code not in valid_route_codes:
+                raise ValueError(f"Unknown route: {route_code}")
+        return '_'.join(route_codes), route_codes
 
 
-IS_DEV = os.environ.get('SERVER_SOFTWARE','').startswith('Development')
+@app.route('/')
+async def index():
+   return redirect("https://github.com/paulo-raca/emdec-gtfs")
 
-# inject './lib' dir in the path so that we can simply do "import ndb"
-# or whatever there's in the app lib dir.
-if 'lib' not in sys.path:
-    sys.path[0:0] = ['lib']
+@app.route('/route/list')
+async def route_list():
+    return jsonify(await all_routes())
 
-# webapp2 config
-app_config = {
-    'webapp2_extras.sessions': {
-        'cookie_name': 'session_cookie',
-        'secret_key': '566tSAsRIfbYuzgYfbGjV0cmStbQVPWKnSegfwVwsldjgn'
-    },
-    'webapp2_extras.auth': {
-        'user_attributes': []
-    }
-}
-
-# Map URLs to handlers
-routes = [
-    Route('/', handler=RedirectHandler, defaults={'_uri': 'https://github.com/paulo-raca/Emdec-GTransit'}),
-    Route('/files/<filename>', handler='emdec2gtfs.RouteHandler:fetch_file'),
-    Route('/async/refresh', handler='emdec2gtfs.RouteHandler:async_refresh'),
-    Route('/async/<what:.*>', handler='emdec2gtfs.RouteHandler:async'),
-    Route('/route/list', handler='emdec2gtfs.RouteHandler:export_route_list'),
-    Route('/route/<route_codes>/json', handler='emdec2gtfs.RouteHandler:export_route_info'),
-    Route('/route/<route_codes>/gtfs', handler='emdec2gtfs.RouteHandler:export_gtfs'),
-]
+@app.route('/route/<route_codes>.json')
+async def route_as_json(route_codes):
+    name, route_codes = await parse_route_codes(route_codes)
+    return jsonify(await route_details(route_codes))
 
 
-app = WSGIApplication(routes, config=app_config, debug=True)
+@app.route('/route/<route_codes>.gtfs')
+async def route_as_gtfs(route_codes):
+    name, route_codes = await parse_route_codes(route_codes)
+    details = await route_details(route_codes)
+    gtfs = emdec2gtfs.build_gtfs(details).getzip()
+    return await send_file(gtfs, mimetype='application/zip', as_attachment=True, attachment_filename=f"gtfs_{name}.zip")
+
+if __name__ == "__main__":
+    app.run()

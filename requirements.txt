@@ -1,0 +1,13 @@
+quart
+aiohttp
+lxml
+cssselect
+google-cloud-ndb
+unicodecsv
+geopy
+
+git+https://github.com/paulo-raca/euclid.git@py3
+git+https://github.com/paulo-raca/aiocache.git
+aiosqlite
+asyncio-pool
+

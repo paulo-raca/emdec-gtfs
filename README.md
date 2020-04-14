@@ -33,22 +33,15 @@ Esta aplicação extrai informações de rotas de onibus do [site da emdec](http
 
 * [`/route/list`](http://emdec.paulo.costa.nom.br/route/list): JSON com número e nome de todas as linhas da EMDEC
 * `/route/<codigo>/json`: Arquivo JSON contendo informação sobre as linhas identificada pelo código. E.g.:
- * [`/route/332/json`](http://emdec.paulo.costa.nom.br/route/332/json): Informações sobre a linha `332`
- * [`/route/116,224,332/json`](http://emdec.paulo.costa.nom.br/route/116,224,332/json): Informações sobre a linhas `116`, `224` e `332`
- * [`/route/all/json`](http://emdec.paulo.costa.nom.br/route/all/json): Informações sobre todas as linhas
+ * [`/route/332.json`](http://emdec.paulo.costa.nom.br/route/332.json): Informações sobre a linha `332`
+ * [`/route/116,224,332.json`](http://emdec.paulo.costa.nom.br/route/116,224,332.json): Informações sobre a linhas `116`, `224` e `332`
+ * [`/route/all.json`](http://emdec.paulo.costa.nom.br/route/all.json): Informações sobre todas as linhas
 * `/route/<codigo>/gtfs`: Arquivo GTFS contendo informação sobre as linhas identificada pelo código. E.g.:
- * [`/route/332/gtfs`](http://emdec.paulo.costa.nom.br/route/332/gtfs): Informações sobre a linha `332`
- * [`/route/116,224,332/gtfs`](http://emdec.paulo.costa.nom.br/route/116,224,332/gtfs): Informações sobre a linhas `116`, `224` e `332`
- * [`/route/all/gtfs`](http://emdec.paulo.costa.nom.br/route/all/gtfs): Informações sobre todas as linhas
+ * [`/route/332.gtfs`](http://emdec.paulo.costa.nom.br/route/332.gtfs): Informações sobre a linha `332`
+ * [`/route/116,224,332.gtfs`](http://emdec.paulo.costa.nom.br/route/116,224,332.gtfs): Informações sobre a linhas `116`, `224` e `332`
+ * [`/route/all.gtfs`](http://emdec.paulo.costa.nom.br/route/all.gtfs): Informações sobre todas as linhas
 
 Exemplo de uso da API JSON: http://jsfiddle.net/v2w1vjLf/
-
-## Cache de dados
-
-Como extrair as informações e exportar para o formato desejado pode ser uma operação bastante demorada, tudo fica armazenado em um cache interno, retornando imediatamente.
-Se você deseja gerar novamente um arquivo, basta adicionar `?nocache` no endereço.
-
-Um `cronjob` atualiza todos os arquivos uma vez ao dia. É possível iniciar o processo de atualização complete através de [`/async/refresh`](http://emdec.paulo.costa.nom.br/async/refresh) (O processo é bastante demorado)
 
 ## Licença
 

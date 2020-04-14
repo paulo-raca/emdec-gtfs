@@ -58,5 +58,5 @@ class GTFS:
     def getzip(self):
         zipfile = BytesIO()
         self.writezip(zipfile)
-        return zipfile.getvalue()
+        return zipfile
 
